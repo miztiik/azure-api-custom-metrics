@@ -1,6 +1,6 @@
 // SET MODULE DATE
 param module_metadata object = {
-  module_last_updated: '2023-06-15'
+  module_last_updated: '2024-01-01'
   owner: 'miztiik@github'
 }
 
@@ -8,53 +8,53 @@ param deploymentParams object
 param identity_params object
 param tags object
 
-var _prebaked_uami_name_prefix = '${identity_params.name_prefix}_${deploymentParams.enterprise_name_suffix}_${deploymentParams.global_uniqueness}'
+var __uami_name_prefix = '${identity_params.name_prefix}_${deploymentParams.enterprise_name_suffix}_${deploymentParams.global_uniqueness}'
 
 @description('Create User-Assigned Managed Identity - For Everything')
 resource r_uami_akane 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: '${_prebaked_uami_name_prefix}_akane'
+  name: '${__uami_name_prefix}_akane'
   location: deploymentParams.location
   tags: tags
 }
 
 @description('Create User-Assigned Managed Identity - For VMs')
 resource r_uami_vm 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: '${_prebaked_uami_name_prefix}_vm'
+  name: '${__uami_name_prefix}_vm'
   location: deploymentParams.location
   tags: tags
 }
 
 @description('Create User-Assigned Managed Identity - For Functions')
 resource r_uami_func 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-  name: '${_prebaked_uami_name_prefix}_func'
+  name: '${__uami_name_prefix}_func'
   location: deploymentParams.location
   tags: tags
 }
 
 // @description('Create User-Assigned Managed Identity - For Stream Analytics')
 // resource r_uami_stream_analytics 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-//   name: '${_prebaked_uami_name_prefix}_stream_analytics'
+//   name: '${__uami_name_prefix}_stream_analytics'
 //   location: deploymentParams.location
 //   tags: tags
 // }
 
 // @description('Create User-Assigned Managed Identity - For Data Factory')
 // resource r_uami_data_factory 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-//   name: '${_prebaked_uami_name_prefix}_data_factory'
+//   name: '${__uami_name_prefix}_data_factory'
 //   location: deploymentParams.location
 //   tags: tags
 // }
 
 // @description('Create User-Assigned Managed Identity - For AKS')
 // resource r_uami_aks 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-//   name: '${_prebaked_uami_name_prefix}_aks'
+//   name: '${__uami_name_prefix}_aks'
 //   location: deploymentParams.location
 //   tags: tags
 // }
 
 // @description('Create User-Assigned Managed Identity - For Logic App')
 // resource r_uami_logic_app 'Microsoft.ManagedIdentity/userAssignedIdentities@2023-01-31' = {
-//   name: '${_prebaked_uami_name_prefix}_logic_app'
+//   name: '${__uami_name_prefix}_logic_app'
 //   location: deploymentParams.location
 //   tags: tags
 // }

@@ -13,22 +13,23 @@
         </set-header>
 
         <emit-metric name="miztiik_events" value="1" namespace="miztiik-api-metrics">
-        <dimension name="event_count" value="1" />
+            <dimension name="event_count" value="1" />
         </emit-metric>
 
         <emit-metric name="miztiik_events_producer" value="1" namespace="miztiik-api-metrics">
             <dimension name="event_count" value="@(context.Response.Body.As<JObject>(preserveContent: true)["resp"]["tot_msgs"].ToString())" />
             <dimension name="event_gen_duration" value="@(context.Response.Body.As<JObject>(preserveContent: true)["resp"]["event_gen_duration"].ToString())" />
         </emit-metric>
-
-        <when condition="@(context.Response.StatusCode >= 200 && context.Response.StatusCode < 300)">
-            <emit-metric name="miztiik_events_produce_resp" value="1" namespace="miztiik-api-metrics">
-                <dimension name="API" value="@(context.Api.Name)" />
-                <dimension name="Client IP" value="@(context.Request.IpAddress)" />
-                <dimension name="Status Code" value="@((String)context.Response.StatusCode.ToString())" />
-                <dimension name="Status Reason" value="@(context.Response.StatusReason)" />
-            </emit-metric>
-        </when>
+        <choose>
+            <when condition="@(context.Response.StatusCode >= 200 && context.Response.StatusCode < 300)">
+                <emit-metric name="miztiik_events_produce_resp" value="1" namespace="miztiik-api-metrics">
+                    <dimension name="API" value="@(context.Api.Name)" />
+                    <dimension name="Client IP" value="@(context.Request.IpAddress)" />
+                    <dimension name="Status Code" value="@((String)context.Response.StatusCode.ToString())" />
+                    <dimension name="Status Reason" value="@(context.Response.StatusReason)" />
+                </emit-metric>
+            </when>   
+        </choose>
 
     </outbound>
     <on-error>

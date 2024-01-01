@@ -13,9 +13,9 @@
         "enable_diagnostics": true,
         "location": "eastus",
         "loc_short_code": "us",
-        "global_uniqueness": "001",
+        "global_uniqueness": "002",
         "enterprise_name": "Miztiik_Enterprises",
-        "enterprise_name_suffix": "api-metrics",
+        "enterprise_name_suffix": "api_metrics",
         "sub_deploymnet_prefix": "Miztiik_Verse"
       }
     },

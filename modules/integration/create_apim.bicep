@@ -60,6 +60,15 @@ resource r_apim_1_logger 'Microsoft.ApiManagement/service/loggers@2022-09-01-pre
   }
 }
 
+@description('Create Tags for APIs')
+resource r_apim_1_tags 'Microsoft.ApiManagement/service/tags@2023-03-01-preview' = {
+  name: '${__apim_name}_tags'
+  parent: r_apim_1
+  properties: {
+    displayName: 'miztiik-store-front'
+  }
+}
+
 @description('Create Named Values for APIM')
 resource r_apim_1_named_value_apim_name 'Microsoft.ApiManagement/service/namedValues@2021-08-01' = {
   name: 'API_M_NAME'
@@ -197,15 +206,25 @@ resource r_apim_1_apis_get_event 'Microsoft.ApiManagement/service/apis/operation
   }
 }
 
-var __policy_content = loadTextContent('api_policies/fn_backend_policy.xml', 'utf-8')
+@description('Add APIM policy to API')
+var __policy_content = loadTextContent('api_policies/fn_backend_policy.xml')
 var __fn_backend_policy = replace(__policy_content, '__BACKEND-ID__', '${r_apim_1_backend_event_generator.name}')
-resource getOrdersPolicy 'Microsoft.ApiManagement/service/apis/operations/policies@2021-12-01-preview' = {
+resource r_apim_1_apis_policy 'Microsoft.ApiManagement/service/apis/operations/policies@2021-12-01-preview' = {
   name: 'policy'
   parent: r_apim_1_apis_get_event
   properties: {
     // value: replace(replace(loadTextContent('apimPolicies/operation.xml'), '{method}', 'GET'), '{template}', '/orders/{storeId}')
     value: __fn_backend_policy
-    format: 'xml'
+    format: 'rawxml'
+  }
+}
+
+@description('Adding Tags to API')
+resource r_apim_1_apis_tags 'Microsoft.ApiManagement/service/tags/apiLinks@2023-03-01-preview' = {
+  name: 'string'
+  parent: r_apim_1_tags
+  properties: {
+    apiId: r_apim_1_apis.id
   }
 }
 
@@ -224,12 +243,19 @@ resource r_apim_1_apis_logger 'Microsoft.ApiManagement/service/apis/diagnostics@
       samplingType: 'fixed'
       percentage: 100
     }
-    backend: {
+    frontend: {
       request: {
         body: {
           bytes: 1024
         }
       }
+    }
+    backend: {
+      // request: {
+      //   body: {
+      //     bytes: 1024
+      //   }
+      // }
       response: {
         body: {
           bytes: 1024

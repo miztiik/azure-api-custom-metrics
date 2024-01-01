@@ -1,17 +1,36 @@
 # Publish Custom API Metrics to Azure Monitor from APIM
 
-At times you need to 
+The application team needs to actively monitor key business metrics for the API. For instance, when dealing with an API that processes store orders, it becomes crucial to track metrics such as the number of orders and the order failure rate.
 
-A quick summary of throwing lot of traffic to Azure API Management and see how it performs. 
+Developers have the choice of publishing custom metrics directly to [Azure Monitor Custom Metrics][2]. At times you will not be to modify the code or want a light weight solution. In that case, Developers are able to publish them using APIM's [Custom Metric Policy][1] to surface them Azure Monitor and trigger alerts based on them. These metrics are published against an particular API resource and are availebl in the Application Insights workspace connected to the API.
 
-We will use the below architecture. 
-![Miztiik Automation - Azure API Management Performance Latency Tests](images/miztiik_architecture_azure_api_latency_001.png)
+![Miztiik Automation - Publish Custom API Metrics to Azure Monitor from APIM](images/miztiik_architecture_azure_api_custom_metrics_001.png)
 
-- **Load Generation**: Locust will be used to generate the traffic at a rate of 1000 requests per second at peak. The load will be generated from a single host. The load will be generated for 40 minutes. 
+In our case, we will using the following three metrics,
+```xml
+<emit-metric name="miztiik_events" value="1" namespace="miztiik-api-metrics">
+    <dimension name="event_count" value="1" />
+</emit-metric>
 
-- **Producer** - The request will be sent to the Azure API Management. The API Management will forward the request to the Azure Function App. The Azure Function App(Producer) will generate a store event and save it to a Service Bus Queue and returns response to APIM. 
+<emit-metric name="miztiik_events_producer" value="1" namespace="miztiik-api-metrics">
+    <dimension name="event_count" value="@(context.Response.Body.As<JObject>(preserveContent: true)["resp"]["tot_msgs"].ToString())" />
+    <dimension name="event_gen_duration" value="@(context.Response.Body.As<JObject>(preserveContent: true)["resp"]["event_gen_duration"].ToString())" />
+</emit-metric>
+<choose>
+    <when condition="@(context.Response.StatusCode >= 200 && context.Response.StatusCode < 300)">
+        <emit-metric name="miztiik_events_produce_resp" value="1" namespace="miztiik-api-metrics">
+            <dimension name="API" value="@(context.Api.Name)" />
+            <dimension name="Client IP" value="@(context.Request.IpAddress)" />
+            <dimension name="Status Code" value="@((String)context.Response.StatusCode.ToString())" />
+            <dimension name="Status Reason" value="@(context.Response.StatusReason)" />
+        </emit-metric>
+    </when>   
+</choose>
+```
 
-- **Producer** - The consumer is triggered when a message is available in the Service Bus Queue. The Azure Function App(Consumer) will read the message from the queue and process it. The processed message is saved to a CosmosDB and Blob Storage..
+1. **Metric: miztiik_events** - A simple one with no transformation
+2. **Metric: event_gen_duration** - Parses the outgoing JSON response and extracts the `event_count` and `event_gen_duration` values
+3. **Metric: miztiik_events_produce_resp** - A metric that is ingested based on a condition(_`StatusCode` in this case)
 
 # Create the Resources.
 
@@ -23,59 +42,25 @@ make all
 
 ## 🎯 Test the solution
 
-Install Locust
-```bash
-pip install locust
-```
-The locust file to drive the load test can be found under `/locust/locust_script.py`. 
+The API Url should be of the format `https://custom-metrics-store-front-us-apim-006.azure-api.net/api/store-events-producer`
+
 
 ```bash
-# Set variables with desired values
-username="miztiik"
-soft_limit=10000
-hard_limit=200000
-
-ulimit -n
-
-# Check if the limits.conf file already contains the entries
-if grep -q "^$username" /etc/security/limits.conf; then
-    # If the entries exist, update the values
-    sudo sed -i "/^$username/ s/\(soft\|hard\) nofile [0-9]*/\1 nofile $soft_limit/" /etc/security/limits.conf
-else
-    # If the entries don't exist, add them to the end of the file
-    echo -e "\n$username soft nofile $soft_limit\n$username hard nofile $hard_limit" | sudo tee -a /etc/security/limits.conf
-fi
-
-ulimit -n 20000
-
-
-
-cd /home/miztiik
-
-# Run the locust file
-TARGET_HOST=https://latency-store-front-us-apim-006.azure-api.net/api/
-locust -f locust_script.py --host=${TARGET_HOST} -u 10000 -r 10 -t 40m --logfile /var/log/miztiik-locust.log --csv-full-history --csv=latency_store_front_us_apim
+LOAD_COUNT=250
+TARGET_HOST="https://api-metrics-store-front-us-apim-002.azure-api.net/api/store-events-producer-fn"
+for ((i=1; i<=LOAD_COUNT; i++)); do
+    COUNT=$((1 + ${RANDOM} % 10))
+    curl -s "${TARGET_HOST}?count=${COUNT}" &
+    echo -e "Request: (${i}/${LOAD_COUNT}) with event count:${COUNT} ----"
+    sleep 1 
+done
 ```
-
-If you had configure port `8089` you can check the progress of the test by opening the browser and navigating to `http://<locust_host>:8089`. You can also download the `csv` file and plot the graph using excel or any other tool of your choice.
-
-![Miztiik Automation - Azure API Management Performance Latency Tests](images/miztiik_architecture_azure_api_latency_002.png)
 
 ### 🧪 Analyze the results
-The latency introduced by APIM is very minimal. The latency is less than 10ms. The latency is consistent throughout the test. Even at peak load, the blob put latency is less than 1ms.
-![Miztiik Automation - Azure API Management Performance Latency Tests](images/miztiik_architecture_azure_api_latency_003.png)
-![Miztiik Automation - Azure API Management Performance Latency Tests](images/miztiik_architecture_azure_api_latency_004.png)
-![Miztiik Automation - Azure API Management Performance Latency Tests](images/miztiik_architecture_azure_api_latency_005.png)
-![Miztiik Automation - Azure API Management Performance Latency Tests](images/miztiik_architecture_azure_api_latency_006.png)
-![Miztiik Automation - Azure API Management Performance Latency Tests](images/miztiik_architecture_azure_api_latency_007.png)
-[Azure Monitoring Community Github - Azure API Management Performance Latency Tests](https://github.com/microsoft/AzureMonitorCommunity) has lot of useful [queries](https://github.com/microsoft/AzureMonitorCommunity/tree/3c499be784e7ee0aab31f2fdbd6faed53ecb2614/Azure%20Services/API%20Management%20services) to analyze the results.
-![Miztiik Automation - Azure API Management Performance Latency Tests](images/miztiik_architecture_azure_api_latency_008.png)
-![Miztiik Automation - Azure API Management Performance Latency Tests](images/miztiik_architecture_azure_api_latency_009.png)
-![Miztiik Automation - Azure API Management Performance Latency Tests](images/miztiik_architecture_azure_api_latency_010.png)
+![Miztiik Automation - Publish Custom API Metrics to Azure Monitor from APIM](images/miztiik_architecture_azure_api_custom_metrics_002.png)
+![Miztiik Automation - Publish Custom API Metrics to Azure Monitor from APIM](images/miztiik_architecture_azure_api_custom_metrics_003.png)
 
  
-
-
 1. ## 🧹 CleanUp
 
    If you want to destroy all the resources created by the stack, Execute the below command to delete the stack, or _you can delete the stack from console as well_
@@ -105,25 +90,19 @@ Thank you for your interest in contributing to our project. Whether it is a bug 
 
 ### 📚 References
 
-1. [Azure Docs - Validate client certificate in APIM][1]
-1. [Azure Docs - Secure APIs using client certificate authentication in APIM][2]
-1. [Azure Docs - Add a custom CA certificate in Azure APIM][3]
-1. [Azure Docs - Secure backend services using client certificate authentication in APIM][4]
-1. [Azure Docs - Using Certificates in Azure APIM][5]
+1. [Azure Docs - APIM Emit custom metrics policy][1]
+1. [Azure Docs - Monitor Custom Metric][2]
 
 
-[1]: https://learn.microsoft.com/en-us/azure/api-management/validate-client-certificate-policy
-[2]: https://learn.microsoft.com/en-us/azure/api-management/api-management-howto-mutual-certificates-for-clients
-[3]: https://learn.microsoft.com/en-us/azure/api-management/api-management-howto-ca-certificates
-[4]: https://docs.microsoft.com/en-us/azure/api-management/api-management-howto-mutual-certificates-for-clients
-[5]: https://techcommunity.microsoft.com/t5/fasttrack-for-azure/using-certificates-in-azure-api-management/ba-p/2888447
 
+[1]: https://learn.microsoft.com/en-us/azure/api-management/emit-metric-policy
+[2]: https://learn.microsoft.com/en-us/azure/azure-monitor/essentials/metrics-custom-overview
 
 ### 🏷️ Metadata
 
-![miztiik-success-green](https://img.shields.io/badge/Miztiik:Automation:Level-300-orange)
+![miztiik-success-green](https://img.shields.io/badge/Miztiik:Automation:Level-100-green)
 
-**Level**: 300
+**Level**: 100
 
 [100]: https://www.udemy.com/course/aws-cloud-security/?referralCode=B7F1B6C78B45ADAF77A9
 [101]: https://www.udemy.com/course/aws-cloud-security-proactive-way/?referralCode=71DC542AD4481309A441

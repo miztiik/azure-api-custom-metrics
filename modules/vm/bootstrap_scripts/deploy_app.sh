@@ -3,13 +3,13 @@
 set -x
 set -o pipefail
 
-# version: 27Dec2023
+# version: 2024-01-01
 
 ##################################################
 #############     SET GLOBALS     ################
 ##################################################
 
-REPO_NAME="azure-apim-latency"
+REPO_NAME="azure-api-custom-metrics"
 
 GIT_REPO_URL="https://github.com/miztiik/$REPO_NAME.git"
 
@@ -94,13 +94,6 @@ function install_azure_python_sdk(){
   log_this "End of Azure Python SDK Installation"
 }
 
-function install_libs(){
-    # Prepare the server for python3
-    sudo yum -y install git jq
-    sudo yum -y install python3-pip
-    sudo yum -y install python3 
-}
-
 function install_nginx(){
     sudo apt-get -y update
     sudo apt-get -y install nginx
@@ -151,21 +144,6 @@ function install_nodejs(){
 }
 
 
-# Function to install Locust
-install_locust() {
-    LOCUST_VERSION="2.20.0"
-    echo "Installing Locust..."
-    pip3 install locust==$LOCUST_VERSION
-
-    # Check for installation success
-    if [ $? -eq 0 ]; then
-        echo "Locust installed successfully."
-    else
-        echo "Failed to install Locust. Please check for errors."
-        exit 1
-    fi
-}
-
 function check_execution(){
   HOST_FQDN=$(hostname)
   HOST_IP=$(hostname -I)
@@ -179,11 +157,10 @@ function check_execution(){
   log_this "Current PATH: ${CURR_PATH}"
 }
 
-# check_execution                 |   tee -a "${LOG_FILE}"
+check_execution                 |   tee -a "${LOG_FILE}"
 install_libs_on_ubuntu            |   tee -a "${LOG_FILE}"
-install_azure_python_sdk        |   tee -a "${LOG_FILE}"
+# install_azure_python_sdk          |   tee -a "${LOG_FILE}"
 # clone_git_repo                  |   tee -a "${LOG_FILE}"
 install_nginx                     |   tee -a "${LOG_FILE}"
-install_locust                    |   tee -a "${LOG_FILE}"
 
 
